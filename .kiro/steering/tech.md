@@ -8,18 +8,45 @@
 
 ## Build and test commands
 
+If `xcodebuild` or `xcrun simctl` fails with *"requires Xcode, but active developer directory … is a command line tools instance"*, the user must run (needs their password, so ask them; don't run sudo yourself):
+
+```sh
+sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+sudo xcodebuild -license accept
+```
+
 ```sh
 # Build (use any available simulator; list them with `xcrun simctl list devices available`)
 xcodebuild -scheme app_pic_cleanup -destination 'platform=iOS Simulator,name=iPhone 18 Pro' build
 
 # Run all unit tests
 xcodebuild test -scheme app_pic_cleanup -destination 'platform=iOS Simulator,name=iPhone 18 Pro'
-
-# Generate dated test photos and add them to the booted simulator
-swift scripts/make_test_photos.swift /tmp/test_photos && xcrun simctl addmedia booted /tmp/test_photos/*
 ```
 
 After every code change: build, run the tests, and fix all errors **and warnings** before you finish.
+
+## Setting up the Simulator for manual testing
+
+The full user-facing walkthrough, with a table of expected results, is in README → "Trying it in the Simulator". Keep that table accurate if the test photos or default settings change.
+
+```sh
+# A simulator must be booted first (running the app from Xcode does this), or:
+xcrun simctl boot "iPhone 18 Pro" && open -a Simulator
+
+# Generate dated test photos (takes a minute or more) and add them to the booted simulator
+swift scripts/make_test_photos.swift /tmp/test_photos
+xcrun simctl addmedia booted /tmp/test_photos/*
+
+# Optional: grant photo access without the prompt (bundle ID is in project.xcproj)
+xcrun simctl privacy booted grant photos <bundle-id>
+
+# Screenshot the simulator, to check the UI yourself
+xcrun simctl io booted screenshot /tmp/shot.png
+```
+
+With default settings, a scan should list exactly 7 photos (all `20xx_*` files above 3 MB, about 52 MB in total). `2015_small`, `2020_compact` (both below the size filter) and `recent` (after the date filter) must not appear, and neither should Apple's built-in sample photos (all under 3 MB).
+
+To reset, the user can use *Device → Erase All Content and Settings*, or run `xcrun simctl erase <device>` (the device must be shut down). Both are destructive to the simulator's data, so ask first.
 
 ## Project file notes
 
@@ -46,7 +73,8 @@ After every code change: build, run the tests, and fix all errors **and warnings
 
 With every change that affects behavior, setup, settings or file layout, update in the same change:
 
-- `README.md`: features, limitations, the customizing table, the test coverage list, the project layout
+- `README.md`: features, limitations, the customizing table, the test coverage list, the project layout, and the Simulator walkthrough with its expected-results table
 - `.kiro/steering/product.md`: if the flow or safety rules change
+- `.kiro/steering/decisions.md`: add an entry for any significant design choice (what was chosen, what was rejected, why), and read it before changing existing behavior
 - `.kiro/steering/structure.md`: if files are added, removed or change responsibility
 - this file: if commands, tooling or conventions change

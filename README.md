@@ -51,32 +51,87 @@ You get the storage back once *Recently Deleted* is emptied (manually, or automa
 
 ## Getting started
 
+### 1. One-time Xcode setup
+
+1. Install Xcode from the App Store and open it once, so it can finish installing its components (including an iOS Simulator).
+2. Point the command-line tools at Xcode. If you skip this, the Terminal commands below (`xcodebuild`, `xcrun simctl`) fail with *"requires Xcode, but active developer directory … is a command line tools instance"*. It asks for your password:
+
+   ```sh
+   sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+   sudo xcodebuild -license accept
+   ```
+
+   Check it worked with `xcodebuild -version`.
+
+### 2. Open, sign and run
+
 1. Fork and clone the repo, then open `app_pic_cleanup.xcodeproj`.
 2. **Signing:** select the project, then each target (`app_pic_cleanup` and `app_pic_cleanupTests`) → *Signing & Capabilities*:
    - set **Team** to your Apple ID (a free personal team works for running on your own phone)
    - change the **Bundle Identifier** to something unique, such as `com.yourname.photocleanup`
-3. Choose a simulator or your iPhone as the run destination and press **⌘R**.
+
+   Signing is only needed for a real iPhone. The Simulator and the tests work without it.
+3. Choose a simulator (e.g. *iPhone 18 Pro*) or your iPhone as the run destination and press **⌘R**.
 4. On a real iPhone, the first run also needs *Settings → Privacy & Security → Developer Mode* turned on.
 
-### Trying it in the Simulator
+## Trying it in the Simulator
 
-A fresh simulator only has a few sample photos, and photos you drag in are dated today, so they don't match "taken before". A script generates realistic test photos with old dates, JPEG and HEIC, plus ones that *should* be filtered out:
+The Simulator comes with 6 of Apple's sample photos (dated 2009–2018), all under 3 MB, so with default settings the scan finds nothing. A script generates realistic test photos with old capture dates, JPEG and HEIC, including some that should be filtered out.
 
-```sh
-swift scripts/make_test_photos.swift /tmp/test_photos
-xcrun simctl addmedia booted /tmp/test_photos/*
-```
+You can drag your own photos onto the Simulator window instead. Photos keep the capture date stored in their EXIF info. Images without one (screenshots, many downloads) are dated the day you add them, so they won't match "taken before".
 
-| File | What it tests |
-|---|---|
-| `2014_beach.jpg` … `2022_park.jpg` | Old, large JPEG/HEIC: should be resized |
-| `2017_portrait.jpg` | Stored sideways (EXIF orientation 6): copy must be upright |
-| `2021_heic_48mp.heic` | 48 MP HEIC, about 18 MB |
-| `2015_small.jpg` | Too small: excluded by the size filter |
-| `2020_compact.heic` | Already compact: should be *skipped* (copy not 20% smaller) |
-| `recent.jpg` | Taken last week: excluded by the date filter |
+### Step by step
 
-To start over, use *Device → Erase All Content and Settings* in the Simulator.
+1. **Start the app in the Simulator** (⌘R in Xcode). The next commands add photos to the *running* ("booted") simulator; with none running they fail with *"No devices are booted"*.
+2. **Allow photo access** when the app asks. Choose full access, not *Limited*.
+3. **Generate the test photos and add them.** Run these from the repo folder:
+
+   ```sh
+   swift scripts/make_test_photos.swift /tmp/test_photos
+   xcrun simctl addmedia booted /tmp/test_photos/*
+   ```
+
+   The first command can take a minute or more (one test photo is 48 megapixels). It prints each file as it's written. Open the Simulator's Photos app to see them under their original years.
+4. **Back in the app, tap *Scan library*** with the default settings (taken before one year ago, larger than 3 MB, longest side 2048 px, quality 70%).
+
+### What you should see
+
+| File | Size | With default settings |
+|---|---|---|
+| `2014_beach.jpg` | 3.9 MB | Listed, then replaced |
+| `2016_mountains.jpg` | 5.9 MB | Listed, then replaced |
+| `2017_portrait.jpg` | 5.9 MB | Listed, then replaced. Stored sideways (EXIF orientation 6); the copy must look upright |
+| `2018_city.jpg` | 5.8 MB | Listed, then replaced |
+| `2019_heic.heic` | 6.3 MB | Listed, then replaced (HEIC → JPEG) |
+| `2021_heic_48mp.heic` | 18.2 MB | Listed, then replaced (48 MP HEIC → JPEG) |
+| `2022_park.jpg` | 5.9 MB | Listed, then replaced |
+| `2015_small.jpg` | 0.2 MB | Not listed: below the size filter |
+| `2020_compact.heic` | 0.3 MB | Not listed: below the size filter (smaller than the lowest setting, 0.5 MB) |
+| `recent.jpg` | 5.9 MB | Not listed: taken last week, after the date filter |
+| Apple's 6 sample photos | 1.3–2.8 MB | Not listed. Lower *Larger than* to 1.5 MB and 5 of them appear |
+
+- **Preview:** *Photos* should be **7** and *Current size* about **52 MB**. *Space freed* appears a few seconds later and should be most of that, since the copies total only a few MB.
+- **Review photos:** tap a few, and switch *Original* / *Resized* to compare quality and see exact sizes.
+- **Run:** tap *Resize 7 photos* and confirm. At the end, iOS asks to delete 7 photos; tap *Delete*.
+- **Result:** in the Simulator's Photos app, each old photo now appears once, as a 2048 px JPEG of roughly 0.3–0.7 MB (about 4 MB in total), still under its original date. The originals are in the *Recently Deleted* album.
+- **History** in the app shows *Photos replaced: 7*.
+
+### Comparing original and copy side by side
+
+Open the *Recently Deleted* album in the Simulator's Photos app, select an original and tap *Recover*. It's back next to its smaller copy, so you can compare them full screen. The app remembers recovered originals as already replaced, so scanning again won't shrink them a second time.
+
+### Starting over
+
+*Device → Erase All Content and Settings* in the Simulator removes all photos, the app and its progress history. Then repeat the steps above. To keep the photos but reset only the app's history (*Photos replaced*, *Skipped*), delete the app from the Simulator's home screen and run it again from Xcode.
+
+## Before the first run on your real iPhone
+
+1. **Make sure your backup really has these photos.** Spot-check a few of the oldest and newest in the date range in your backup itself.
+2. **Check iCloud Photos** (*Settings → [your name] → iCloud → Photos*). If it's on, deleted originals are removed from iCloud and all your devices too. With *Optimize iPhone Storage* on, the phone may only hold small previews of old photos, so you'll mostly free iCloud space rather than phone space.
+3. **Start small:** set *Taken before* to cover just one month, scan, and look through *Review photos*.
+4. **Do one run, then check the copies** in Photos: date, location, and that they look good enough to you. If not, change *Longest side* or *Quality* before going further. The photos already done stay as they are (their originals are in *Recently Deleted* for 30 days), because the app never processes a photo twice.
+5. **Then widen the date** to your full backup cutoff. Keep the phone plugged in with the app open; it keeps the screen on.
+6. **Empty *Recently Deleted*** when you're happy. That's when the space actually comes back.
 
 ## Running the tests
 
@@ -134,10 +189,17 @@ Keep decision logic in pure functions (like the ones in `CleanupSettings`) and a
 This repo is set up to be modified with AI coding assistants. `.kiro/steering/` holds context that [Kiro](https://kiro.dev) loads automatically:
 
 - `product.md`: what the app does and the safety rules it must keep
-- `tech.md`: stack, build/test commands, and coding conventions
+- `decisions.md`: the key design decisions, the alternatives that were rejected, and why. Read this before "simplifying" something.
+- `tech.md`: stack, build/test commands, simulator testing, and coding conventions
 - `structure.md`: where things live and how data flows
 
-These are plain Markdown, so other tools can read them too. Point your assistant at them, or copy them into its rules file. The steering also tells the assistant to keep this README, the steering files and the tests up to date with every change.
+These are plain Markdown, so other tools can read them too. Point your assistant at them, or copy them into its rules file. The steering also tells the assistant to keep this README, the steering files and the tests up to date with every change, and to record new design decisions in `decisions.md`.
+
+Example requests that work well with this context:
+
+- "Add a setting to skip favorites, with tests."
+- "Add an option to keep HEIC output instead of JPEG."
+- "Set up the Simulator with test photos and tell me what the scan should show."
 
 ## License
 
