@@ -126,13 +126,23 @@ nonisolated enum PhotoLibrary {
         var id: String?
     }
 
+    /// `originalFilename` was renamed to `filename` (now optional) in iOS 27.
+    private static func filename(of resource: PHAssetResource) -> String? {
+        if #available(iOS 27, *) {
+            resource.filename
+        } else {
+            resource.originalFilename
+        }
+    }
+
     /// Saves `fileURL` as a new photo that copies the original's date, location,
     /// favorite flag and album membership. Returns the new asset's ID.
     static func saveReplacement(fileURL: URL, fileExtension: String, replacing originalID: String) async throws -> String {
         guard let original = asset(originalID) else { throw PhotoError.assetNotFound }
 
         let originalName = PHAssetResource.assetResources(for: original)
-            .first { $0.type == .photo }?.filename
+            .first { $0.type == .photo }
+            .flatMap(Self.filename(of:))
         let newName = originalName.map { ($0 as NSString).deletingPathExtension + "." + fileExtension }
 
         var albums: [PHAssetCollection] = []
