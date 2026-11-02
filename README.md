@@ -1,5 +1,18 @@
 # Photo Cleanup
 
+1. Back up your photos
+2. Set your settings:
+<img  height="486" alt="image" src="https://github.com/user-attachments/assets/d9868fe2-3ac2-4545-9a95-3b3262745a57" />
+
+4. Then hit Start and watch it run!
+<img  height="486" alt="image" src="https://github.com/user-attachments/assets/de528f4f-e2c5-40cc-9213-2c637050948f" />
+
+6. Confirm every batch delete
+<img height="486" alt="image" src="https://github.com/user-attachments/assets/03b589f6-32c5-4991-a8a9-67d6d9733db6" />
+
+6. Done!
+
+
 An iPhone app that frees up storage by replacing large, older photos with smaller JPEG copies. It's meant for people who have already backed up their originals (to a computer, a NAS, Google Photos, and so on) and want their phone's library to take up less space.
 
 You choose the rules: photos **taken before a date** and **larger than a file size**. Then you **preview** exactly what will happen before anything is changed.
